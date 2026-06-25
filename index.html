@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+:root{
+  --bg:#fff;--bg2:#f7f7f8;--bg3:#efefef;
+  --text:#111;--text2:#666;--text3:#bbb;
+  --border:#e8e8e8;--border2:#d0d0d0;
+  --accent:#4a90d9;--accent-bg:#eef4fc;
+  --red:#ff3b30;--star:#f5a623;
+  --green:#34c759;--orange:#ff9500;
+  --r:12px;--rs:8px;
+  --shadow:0 1px 6px rgba(0,0,0,.07);
+}
+@media(prefers-color-scheme:dark){:root{
+  --bg:#111;--bg2:#1c1c1e;--bg3:#2c2c2e;
+  --text:#f0f0f0;--text2:#8e8e93;--text3:#48484a;
+  --border:#2c2c2e;--border2:#3a3a3c;
+  --accent-bg:#1a2a3a;
+  --shadow:0 1px 6px rgba(0,0,0,.25);
+}}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overscroll-behavior:none}
+
+/* ── HEADER ── */
+.header{position:sticky;top:0;z-index:10;background:var(--bg);border-bottom:1px solid var(--border);padding:12px 16px 10px}
+.header-row{display:flex;align-items:center;justify-content:flex-end;margin-bottom:10px}
+.stats{font-size:13px;color:var(--text2);display:flex;gap:10px}
+.stat-item{display:flex;align-items:center;gap:4px}
+.stat-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.dot-unread{background:var(--accent)}
+.dot-read{background:var(--green)}
+.toolbar{display:flex;gap:8px}
+.btn{display:inline-flex;align-items:center;gap:5px;padding:8px 15px;border:1px solid var(--border2);border-radius:var(--rs);background:#fff;color:var(--text);font-size:13px;font-weight:500;cursor:pointer;white-space:nowrap;min-height:38px}
+@media(prefers-color-scheme:dark){.btn{background:var(--bg2)}}
+.btn:active{opacity:.7}
+.btn-add{background:#fff;border-color:var(--border2)}
+.btn-random{background:#fff;border-color:var(--border2)}
+.btn svg{width:14px;height:14px;flex-shrink:0}
+
+/* ── LIST ── */
+.list{padding:10px 12px 80px}
+
+/* ── ITEM WRAPPER ── */
+.item-wrap{position:relative;margin-top:8px;border-radius:var(--r);overflow:hidden}
+
+/* action buttons (revealed on swipe) */
+.item-actions{position:absolute;top:0;right:0;bottom:0;display:flex;align-items:stretch;border-radius:0 var(--r) var(--r) 0;overflow:hidden}
+.action-btn{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;border:none;cursor:pointer;font-size:10px;font-weight:500;transition:opacity .15s;padding:0 2px}
+.action-btn:active{opacity:.7}
+.action-btn svg{width:18px;height:18px}
+
+/*심플 슬라이드 액션 색상 */
+.action-star{background:var(--bg2);color:var(--star);width:64px;border-right:1px solid var(--border)}
+.action-cross{background:var(--bg2);color:var(--text2);width:64px;border-right:1px solid var(--border)}
+.action-order{background:var(--bg2);color:var(--accent);width:64px;border-right:1px solid var(--border)}
+.action-del{background:#fff0ef;color:var(--red);width:60px}
+@media(prefers-color-scheme:dark){
+  .action-star,.action-cross,.action-order{background:var(--bg3)}
+  .action-del{background:#2a1210}
+}
+
+/* item card */
+.item-card{position:relative;z-index:1;background:#fff;border-radius:var(--r);border:1px solid var(--border);display:flex;align-items:center;box-shadow:var(--shadow);transition:transform .25s cubic-bezier(.4,0,.2,1);will-change:transform;touch-action:pan-y;min-height:56px}
+@media(prefers-color-scheme:dark){.item-card{background:var(--bg2)}}
+.item-card.swiped{transform:translateX(-252px)}
+.item-card.read{background:var(--bg2)}
+.item-card.read .item-title{color:var(--text3);text-decoration:none}
+.item-card.strikethrough .item-title{text-decoration:line-through;color:var(--text3)}
+
+/* drag handle */
+.handle{display:flex;align-items:center;justify-content:center;padding:0 2px 0 8px;min-height:56px;min-width:28px;cursor:grab;color:var(--text3);flex-shrink:0;touch-action:none}
+.handle svg{width:14px;height:14px}
+
+/* number */
+.num-badge{font-size:12px;color:var(--text3);min-width:26px;text-align:center;flex-shrink:0;padding:0 2px}
+
+/* content */
+.item-content{flex:1;padding:12px 6px 12px 4px;min-width:0}
+.item-title-row{display:flex;align-items:baseline;gap:6px;flex-wrap:wrap}
+.item-title{font-size:14px;line-height:1.4;color:var(--text);word-break:break-word;text-decoration:none}
+.item-title:active{opacity:.7}
+.stars-row{display:flex;align-items:center;gap:1px;margin-top:3px}
+.star-filled{font-size:12px;color:var(--star)}
+
+/* right side */
+.item-right{display:flex;align-items:center;gap:8px;padding:0 12px 0 4px;flex-shrink:0}
+.check-box{width:22px;height:22px;border-radius:5px;border:1.5px solid var(--border2);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background .15s,border-color .15s;flex-shrink:0;background:#fff}
+@media(prefers-color-scheme:dark){.check-box{background:var(--bg3)}}
+.check-box.checked{background:var(--accent);border-color:var(--accent)}
+.check-box svg{width:13px;height:13px;color:#fff;opacity:0;transition:opacity .15s}
+.check-box.checked svg{opacity:1}
+
+/* drag states */
+.item-card.dragging{opacity:.3;transform:none!important;box-shadow:none}
+.item-wrap.drag-over-top .item-card{box-shadow:0 -3px 0 var(--accent)}
+.item-wrap.drag-over-bottom .item-card{box-shadow:0 3px 0 var(--accent)}
+
+/* ── SHEETS ── */
+.overlay{display:none;position:fixed;inset:0;z-index:40;background:rgba(0,0,0,.3)}
+.overlay.show{display:block}
+.sheet{position:fixed;left:0;right:0;bottom:0;z-index:50;background:var(--bg);border-radius:20px 20px 0 0;padding:20px 20px 44px;transform:translateY(100%);transition:transform .28s cubic-bezier(.4,0,.2,1)}
+.sheet.show{transform:none}
+.sheet-handle{width:34px;height:4px;background:var(--border2);border-radius:2px;margin:0 auto 16px}
+.sheet h3{font-size:16px;font-weight:600;margin-bottom:14px}
+.inp{width:100%;padding:12px 14px;border:1.5px solid var(--border2);border-radius:var(--rs);background:var(--bg2);color:var(--text);font-size:15px;margin-bottom:10px;outline:none;font-family:inherit}
+.inp:focus{border-color:var(--accent)}
+.inp-row{display:flex;gap:8px;margin-top:6px}
+.inp-row .btn{flex:1;justify-content:center;font-size:14px;padding:11px}
+.inp-row .btn-primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+.fetch-status{font-size:12px;color:var(--text2);margin-bottom:8px;min-height:18px;line-height:1.5}
+.fetch-status.ok{color:var(--green)}
+.fetch-status.err{color:var(--red)}
+.fetch-status.warn{color:var(--orange)}
+
+/* star sheet */
+.star-sheet-label{font-size:13px;color:var(--text2);text-align:center;margin-bottom:12px;line-height:1.4;word-break:break-word}
+.star-picks{display:flex;justify-content:center;gap:6px;margin-bottom:16px}
+.star-pick{font-size:34px;padding:4px 6px;border:none;background:none;cursor:pointer;color:var(--border2);line-height:1;min-height:48px;min-width:44px;transition:color .1s}
+.star-pick.on{color:var(--star)}
+.star-clear{width:100%;padding:11px;font-size:14px;border-radius:var(--rs);border:1px solid var(--border);background:var(--bg2);color:var(--text2);cursor:pointer}
+
+/* order sheet */
+.order-sheet p{font-size:13px;color:var(--text2);margin-bottom:10px;word-break:break-word;line-height:1.4}
+.order-inp-row{display:flex;gap:8px;align-items:center}
+.order-inp{width:90px;padding:11px 14px;border:1.5px solid var(--border2);border-radius:var(--rs);background:var(--bg2);color:var(--text);font-size:18px;font-weight:600;outline:none;font-family:inherit;text-align:center}
+.order-inp:focus{border-color:var(--accent)}
+.order-confirm{flex:1;padding:12px;background:var(--accent);color:#fff;border:none;border-radius:var(--rs);font-size:15px;font-weight:500;cursor:pointer}
+
+/* random sheet */
+.rand-dice{font-size:38px;text-align:center;margin-bottom:10px}
+.rand-title{font-size:17px;font-weight:600;text-align:center;margin-bottom:4px;line-height:1.4}
+.rand-words{text-align:center;font-size:13px;color:var(--text2);margin-bottom:10px}
+.rand-link{display:block;text-align:center;font-size:12px;color:var(--accent);word-break:break-all;margin-bottom:14px}
+.rand-close{width:100%;padding:12px;font-size:15px;border-radius:var(--rs);border:1px solid var(--border2);background:var(--bg2);color:var(--text);cursor:pointer}
+
+/* toast */
+.toast{position:fixed;bottom:32px;left:50%;transform:translateX(-50%) translateY(10px);background:rgba(20,20,20,.88);color:#fff;font-size:13px;padding:9px 18px;border-radius:20px;z-index:99;opacity:0;transition:opacity .2s,transform .2s;pointer-events:none;white-space:nowrap}
+.toast.show{opacity:1;transform:translateX(-50%)}
+
+/* spinner */
+.spinner{display:inline-block;width:12px;height:12px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .6s linear infinite;vertical-align:middle;margin-right:4px}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-row">
+    <div class="stats">
+      <span class="stat-item"><span class="stat-dot dot-unread"></span><span id="stat-unread"></span></span>
+      <span class="stat-item"><span class="stat-dot dot-read"></span><span id="stat-read"></span></span>
+    </div>
+  </div>
+  <div class="toolbar">
+    <button class="btn btn-add" onclick="openAdd()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+      추가
+    </button>
+    <button class="btn btn-random" onclick="pickRandom()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 3h5v5M4 20 20.2 3.8M21 16v5h-5M15 15l5.1 5.1M4 4l5 5"/></svg>
+      랜덤 뽑기
+    </button>
+  </div>
+</div>
+
+<div class="list" id="list"></div>
+
+<div class="overlay" id="overlay" onclick="closeAll()"></div>
+
+<!-- add sheet -->
+<div class="sheet" id="add-sheet">
+  <div class="sheet-handle"></div>
+  <h3>팬픽 추가</h3>
+  <div class="fetch-status" id="fetch-status"></div>
+  <input class="inp" id="add-url" type="url" placeholder="AO3 링크 붙여넣기" oninput="onUrlInput()" autocomplete="off" autocorrect="off" spellcheck="false"/>
+  <input class="inp" id="add-title" type="text" placeholder="제목 (자동 입력됨)" autocomplete="off"/>
+  <div class="inp-row">
+    <button class="btn" onclick="closeAll()">취소</button>
+    <button class="btn btn-primary" onclick="confirmAdd()">추가</button>
+  </div>
+</div>
+
+<!-- star sheet -->
+<div class="sheet" id="star-sheet">
+  <div class="sheet-handle"></div>
+  <div class="star-sheet-label" id="star-label"></div>
+  <div class="star-picks" id="star-picks"></div>
+  <button class="star-clear" onclick="setStar(0)">별점 지우기</button>
+</div>
+
+<!-- order sheet -->
+<div class="sheet" id="order-sheet">
+  <div class="sheet-handle"></div>
+  <h3>순서 변경</h3>
+  <p class="order-sheet" id="order-label"></p>
+  <div class="order-inp-row">
+    <input class="order-inp" id="order-inp" type="number" min="1" placeholder="–"/>
+    <button class="order-confirm" onclick="confirmOrder()">이동</button>
+  </div>
+</div>
+
+<!-- random sheet -->
+<div class="sheet" id="rand-sheet">
+  <div class="sheet-handle"></div>
+  <div class="rand-dice">🎲</div>
+  <div class="rand-title" id="rand-title"></div>
+  <div class="rand-words" id="rand-words"></div>
+  <a class="rand-link" id="rand-link" href="#" target="_blank"></a>
+  <button class="rand-close" onclick="closeAll()">닫기</button>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const DEFAULT=[{"id":1,"title":"you've got the antidote for me","url":"https://archiveofourown.org/works/16138103","read":false,"stars":0,"strikethrough":false,"words":null},{"id":2,"title":"In the Shadow of Your Heart","url":"https://archiveofourown.org/works/12282198","read":false,"stars":0,"strikethrough":false,"words":null},{"id":3,"title":"Draco Malfoy, It's Your Lucky Day","url":"https://archiveofourown.org/works/359705","read":false,"stars":0,"strikethrough":false,"words":null},{"id":4,"title":"The Mirror of Ecidyrue","url":"https://archiveofourown.org/series/1765369","read":false,"stars":0,"strikethrough":false,"words":null},{"id":5,"title":"Running on Air","url":"https://archiveofourown.org/works/3171550","read":false,"stars":0,"strikethrough":false,"words":null},{"id":6,"title":"Tea and No Sympathy","url":"https://archiveofourown.org/works/2734082","read":false,"stars":0,"strikethrough":false,"words":null},{"id":7,"title":"Symptom of Your Touch","url":"https://archiveofourown.org/works/47334964","read":false,"stars":0,"strikethrough":false,"words":null},{"id":8,"title":"Heal Thyself","url":"https://archiveofourown.org/works/38231509","read":false,"stars":0,"strikethrough":false,"words":null},{"id":9,"title":"The Wrong Sort","url":"https://archiveofourown.org/works/26587504","read":false,"stars":0,"strikethrough":false,"words":null},{"id":10,"title":"Away Childish Things","url":"https://archiveofourown.org/works/16052816","read":false,"stars":0,"strikethrough":false,"words":null},{"id":11,"title":"Our Darling D","url":"https://archiveofourown.org/works/20229649","read":false,"stars":0,"strikethrough":false,"words":null},{"id":12,"title":"The Bucket List","url":"https://archiveofourown.org/works/22431970","read":false,"stars":0,"strikethrough":false,"words":null},{"id":13,"title":"Way down we go","url":"https://archiveofourown.org/works/18591952","read":false,"stars":0,"strikethrough":false,"words":null},{"id":14,"title":"Flirt","url":"https://archiveofourown.org/works/10515498","read":false,"stars":0,"strikethrough":false,"words":null},{"id":15,"title":"History Repeats Itself","url":"https://archiveofourown.org/works/4304088","read":false,"stars":0,"strikethrough":false,"words":null},{"id":16,"title":"break the bad luck in my life","url":"https://archiveofourown.org/works/17554556","read":false,"stars":0,"strikethrough":false,"words":null},{"id":17,"title":"Ferocious Determination, Insufficient Deliberation, and a Slightly Wrong Destination","url":"https://archiveofourown.org/works/364698","read":false,"stars":0,"strikethrough":false,"words":null},{"id":18,"title":"Side-Along","url":"https://archiveofourown.org/works/1092424","read":false,"stars":0,"strikethrough":false,"words":null},{"id":19,"title":"Paint me a Birmingham","url":"https://archiveofourown.org/works/73985381","read":false,"stars":0,"strikethrough":false,"words":null},{"id":20,"title":"Sub rosa","url":"https://archiveofourown.org/works/60539206","read":false,"stars":0,"strikethrough":false,"words":null},{"id":21,"title":"Cherry","url":"https://archiveofourown.org/works/66163141","read":false,"stars":0,"strikethrough":false,"words":null},{"id":22,"title":"The Lesson of You","url":"https://archiveofourown.org/works/13867242","read":false,"stars":0,"strikethrough":false,"words":null},{"id":23,"title":"Malfoy Child","url":"https://archiveofourown.org/works/10532211","read":false,"stars":0,"strikethrough":false,"words":null},{"id":24,"title":"Two to Lie and One to Listen","url":"https://archiveofourown.org/works/40161111","read":false,"stars":0,"strikethrough":false,"words":null},{"id":25,"title":"Helix","url":"https://archiveofourown.org/works/3114812","read":false,"stars":0,"strikethrough":false,"words":null},{"id":26,"title":"Draco Malfoy and the Letter from the Future","url":"https://archiveofourown.org/works/12480304","read":false,"stars":0,"strikethrough":false,"words":null},{"id":27,"title":"Dear Cousin, Love Regulus","url":"https://archiveofourown.org/works/15967970","read":false,"stars":0,"strikethrough":false,"words":null},{"id":28,"title":"Another Mask Behind You","url":"https://archiveofourown.org/works/2780708","read":false,"stars":0,"strikethrough":false,"words":null},{"id":29,"title":"knickers in a twist","url":"https://archiveofourown.org/works/19771492","read":false,"stars":0,"strikethrough":false,"words":null},{"id":30,"title":"Harry Potter and the elusive day off","url":"https://archiveofourown.org/works/21630793","read":false,"stars":0,"strikethrough":false,"words":null},{"id":31,"title":"Rookie Moves","url":"https://archiveofourown.org/works/46287256","read":false,"stars":0,"strikethrough":false,"words":null},{"id":32,"title":"Little Prince, Kneel","url":"https://archiveofourown.org/works/18462467","read":false,"stars":0,"strikethrough":false,"words":null},{"id":33,"title":"The Ordeal of Being Known","url":"https://archiveofourown.org/works/28864512","read":false,"stars":0,"strikethrough":false,"words":null},{"id":34,"title":"Draco, not Malfoy.","url":"https://archiveofourown.org/works/46874758","read":false,"stars":0,"strikethrough":false,"words":null},{"id":35,"title":"Sealed with a kiss","url":"https://archiveofourown.org/works/310770","read":false,"stars":0,"strikethrough":false,"words":null},{"id":36,"title":"Calico Skies","url":"https://archiveofourown.org/works/40060140","read":false,"stars":0,"strikethrough":false,"words":null},{"id":37,"title":"Cut From the Sky","url":"https://archiveofourown.org/works/46972357","read":false,"stars":0,"strikethrough":false,"words":null},{"id":38,"title":"All Our Secrets Laid Bare","url":"https://archiveofourown.org/works/1227880","read":false,"stars":0,"strikethrough":false,"words":null},{"id":39,"title":"Trials and Revelations","url":"https://archiveofourown.org/works/35469247","read":false,"stars":0,"strikethrough":false,"words":null},{"id":40,"title":"Recursion","url":"https://archiveofourown.org/works/47611450","read":false,"stars":0,"strikethrough":false,"words":null},{"id":41,"title":"The Man Who Lived","url":"https://archiveofourown.org/works/9167785","read":false,"stars":0,"strikethrough":false,"words":null},{"id":42,"title":"Espresso Patronum","url":"https://archiveofourown.org/works/26205850","read":false,"stars":0,"strikethrough":false,"words":null},{"id":43,"title":"Heat of the Heart","url":"https://archiveofourown.org/works/11075166","read":false,"stars":0,"strikethrough":false,"words":null},{"id":44,"title":"The Bolthole","url":"https://archiveofourown.org/works/26025370","read":false,"stars":0,"strikethrough":false,"words":null},{"id":45,"title":"Want for Nothing","url":"https://archiveofourown.org/works/58803367","read":false,"stars":0,"strikethrough":false,"words":null},{"id":46,"title":"A Holiday in Provence","url":"https://archiveofourown.org/works/15904410","read":false,"stars":0,"strikethrough":false,"words":null},{"id":47,"title":"The Boy from the Piano Shop","url":"https://archiveofourown.org/works/51376738","read":false,"stars":0,"strikethrough":false,"words":null},{"id":48,"title":"Telling the Bees","url":"https://archiveofourown.org/works/22775038","read":false,"stars":0,"strikethrough":false,"words":null},{"id":49,"title":"Among Ancient Pines","url":"https://archiveofourown.org/works/33420310","read":false,"stars":0,"strikethrough":false,"words":null},{"id":50,"title":"Blood and Fire","url":"https://archiveofourown.org/works/12684348","read":false,"stars":0,"strikethrough":false,"words":null},{"id":51,"title":"Nothing But You On My Mind","url":"https://archiveofourown.org/works/48665548","read":false,"stars":0,"strikethrough":false,"words":null},{"id":52,"title":"XXIX","url":"https://archiveofourown.org/works/66490894","read":false,"stars":0,"strikethrough":false,"words":null},{"id":53,"title":"Tit for Tat","url":"https://archiveofourown.org/works/26244286","read":false,"stars":0,"strikethrough":false,"words":null},{"id":54,"title":"Never Mind the Bollocks","url":"https://archiveofourown.org/works/52502854","read":false,"stars":0,"strikethrough":false,"words":null},{"id":55,"title":"Sent Down","url":"https://archiveofourown.org/works/66056227","read":false,"stars":0,"strikethrough":false,"words":null},{"id":56,"title":"No Harm","url":"https://archiveofourown.org/works/52452140","read":false,"stars":0,"strikethrough":false,"words":null},{"id":57,"title":"Hold Close Your Heart and Take the Leap","url":"https://archiveofourown.org/works/24340816","read":false,"stars":0,"strikethrough":false,"words":null},{"id":58,"title":"Not a Date","url":"https://archiveofourown.org/works/16485653","read":false,"stars":0,"strikethrough":false,"words":null},{"id":59,"title":"Zᴏᴅɪᴀᴄ","url":"https://archiveofourown.org/works/65174116","read":false,"stars":0,"strikethrough":false,"words":null},{"id":60,"title":"Guess Who's Coming to Dinner","url":"https://archiveofourown.org/works/16731783","read":false,"stars":0,"strikethrough":false,"words":null},{"id":61,"title":"Foreshadowing (I Really Should Have Seen That Coming)","url":"https://archiveofourown.org/works/20764577","read":false,"stars":0,"strikethrough":false,"words":null},{"id":62,"title":"Hair of the Dog","url":"https://archiveofourown.org/works/70669091","read":false,"stars":0,"strikethrough":false,"words":null},{"id":63,"title":"What Real Thing?","url":"https://archiveofourown.org/works/8662435","read":false,"stars":0,"strikethrough":false,"words":null},{"id":64,"title":"Silver Spoon","url":"https://archiveofourown.org/works/56226595","read":false,"stars":0,"strikethrough":false,"words":null},{"id":65,"title":"The Devoted Gentleman","url":"https://archiveofourown.org/works/72431971","read":false,"stars":0,"strikethrough":false,"words":null},{"id":66,"title":"Any Instrument","url":"https://archiveofourown.org/works/5403371","read":false,"stars":0,"strikethrough":false,"words":null},{"id":67,"title":"By the Grace","url":"https://archiveofourown.org/works/22062673","read":false,"stars":0,"strikethrough":false,"words":null},{"id":68,"title":"What We Pretend We Can't See","url":"https://archiveofourown.org/works/9794657","read":false,"stars":0,"strikethrough":false,"words":null},{"id":69,"title":"The Fall of the Veils","url":"https://archiveofourown.org/works/1343047","read":false,"stars":0,"strikethrough":false,"words":null},{"id":70,"title":"Salt on the Western Wind","url":"https://archiveofourown.org/works/879835","read":false,"stars":0,"strikethrough":false,"words":null},{"id":71,"title":"Tincture","url":"https://archiveofourown.org/works/63950455","read":false,"stars":0,"strikethrough":false,"words":null},{"id":72,"title":"In Evidence of Magical Theory","url":"https://archiveofourown.org/works/9174820","read":false,"stars":0,"strikethrough":false,"words":null},{"id":73,"title":"He Comes Like a Thunderstorm","url":"http://archiveofourown.org/works/35395153","read":false,"stars":0,"strikethrough":false,"words":null},{"id":74,"title":"I'll never be your chosen one","url":"https://archiveofourown.org/works/20774483","read":false,"stars":0,"strikethrough":false,"words":null},{"id":75,"title":"An Issue of Consequence","url":"https://archiveofourown.org/works/1439476","read":false,"stars":0,"strikethrough":false,"words":null},{"id":76,"title":"Bad Habits","url":"https://archiveofourown.org/works/36998755","read":false,"stars":0,"strikethrough":false,"words":null},{"id":77,"title":"Ankles","url":"https://archiveofourown.org/works/66522295","read":false,"stars":0,"strikethrough":false,"words":null},{"id":78,"title":"How to Unbreak a Boy","url":"https://archiveofourown.org/works/63437308","read":false,"stars":0,"strikethrough":false,"words":null},{"id":79,"title":"Right Hand Red","url":"https://archiveofourown.org/works/3178065","read":false,"stars":0,"strikethrough":false,"words":null},{"id":80,"title":"something in the static","url":"https://archiveofourown.org/works/53747086","read":false,"stars":0,"strikethrough":false,"words":null},{"id":81,"title":"Tales of the Potters","url":"https://archiveofourown.org/works/47193232","read":false,"stars":0,"strikethrough":false,"words":null},{"id":82,"title":"You're My Boyfriend Now","url":"https://archiveofourown.org/works/62256701","read":false,"stars":0,"strikethrough":false,"words":null},{"id":83,"title":"Thine Enemy is Sweet","url":"https://archiveofourown.org/works/19232401","read":false,"stars":0,"strikethrough":false,"words":null},{"id":84,"title":"Doer of Good Deeds","url":"https://archiveofourown.org/works/941633","read":false,"stars":0,"strikethrough":false,"words":null},{"id":85,"title":"Stop All the Clocks (This Is the Last Time I'm Leaving Without You)","url":"https://archiveofourown.org/works/1273078","read":false,"stars":0,"strikethrough":false,"words":null},{"id":86,"title":"Inside Grey Eyes","url":"https://archiveofourown.org/works/31908952","read":false,"stars":0,"strikethrough":false,"words":null},{"id":87,"title":"A Big Black Sky","url":"https://archiveofourown.org/works/20551733","read":false,"stars":0,"strikethrough":false,"words":null},{"id":88,"title":"In the Blood","url":"https://archiveofourown.org/works/43178670","read":false,"stars":0,"strikethrough":false,"words":null},{"id":89,"title":"Moonlight Mile","url":"https://archiveofourown.org/works/63842764","read":false,"stars":0,"strikethrough":false,"words":null},{"id":90,"title":"regret","url":"https://archiveofourown.org/works/66695554","read":false,"stars":0,"strikethrough":false,"words":null},{"id":91,"title":"isn't the view spectacular","url":"https://archiveofourown.org/works/82876426","read":false,"stars":0,"strikethrough":false,"words":null},{"id":92,"title":"sweating through the heat","url":"https://archiveofourown.org/works/64874950","read":false,"stars":0,"strikethrough":false,"words":null},{"id":93,"title":"The Widening Gyre","url":"https://archiveofourown.org/works/86639841","read":false,"stars":0,"strikethrough":false,"words":null},{"id":94,"title":"It Must Be (True Love)","url":"https://archiveofourown.org/works/4202763","read":false,"stars":0,"strikethrough":false,"words":null},{"id":95,"title":"boys in the better land","url":"https://archiveofourown.org/works/83680316","read":false,"stars":0,"strikethrough":false,"words":null},{"id":96,"title":"The \"Legs\" Incident","url":"https://archiveofourown.org/works/83727226","read":false,"stars":0,"strikethrough":false,"words":null},{"id":97,"title":"Under Dragon Wings","url":"https://archiveofourown.org/works/25938994","read":false,"stars":0,"strikethrough":false,"words":null},{"id":98,"title":"No Children","url":"https://archiveofourown.org/works/62135110","read":false,"stars":0,"strikethrough":false,"words":null},{"id":99,"title":"The Two Spare Ones","url":"https://archiveofourown.org/works/54764782","read":false,"stars":0,"strikethrough":false,"words":null},{"id":100,"title":"Temptation on the warfront","url":"https://archiveofourown.org/works/4373594","read":false,"stars":0,"strikethrough":false,"words":null},{"id":101,"title":"The Sound Of You","url":"https://archiveofourown.org/works/84565036","read":false,"stars":0,"strikethrough":false,"words":null},{"id":102,"title":"Muggle 'Drug Store Items'","url":"https://archiveofourown.org/works/8103610","read":false,"stars":0,"strikethrough":false,"words":null},{"id":103,"title":"Cut From the Sky","url":"https://archiveofourown.org/works/46972357","read":false,"stars":0,"strikethrough":false,"words":null},{"id":104,"title":"Southerly","url":"https://archiveofourown.org/works/75721306","read":false,"stars":0,"strikethrough":false,"words":null},{"id":105,"title":"Bad's Been Good To Me","url":"https://archiveofourown.org/works/52988485","read":false,"stars":0,"strikethrough":false,"words":null},{"id":106,"title":"He Keeps Me Up","url":"https://archiveofourown.org/works/46515169","read":false,"stars":0,"strikethrough":false,"words":null},{"id":107,"title":"For The Greater Good","url":"https://archiveofourown.org/works/12749823","read":false,"stars":0,"strikethrough":false,"words":null},{"id":108,"title":"Now I Wake Up In The Night and Watch You Breathe","url":"https://archiveofourown.org/works/54239449","read":false,"stars":0,"strikethrough":false,"words":null},{"id":109,"title":"REVOLVEVLOVER","url":"https://archiveofourown.org/works/2340719","read":false,"stars":0,"strikethrough":false,"words":null},{"id":110,"title":"Everybody Hates a Tourist","url":"https://archiveofourown.org/works/47441245","read":false,"stars":0,"strikethrough":false,"words":null},{"id":111,"title":"Their Serendipities","url":"https://archiveofourown.org/works/1790533","read":false,"stars":0,"strikethrough":false,"words":null},{"id":112,"title":"Wild","url":"https://archiveofourown.org/works/8728150","read":false,"stars":0,"strikethrough":false,"words":null},{"id":113,"title":"Under Crete Lies a Labyrinth","url":"https://archiveofourown.org/works/61111246","read":false,"stars":0,"strikethrough":false,"words":null},{"id":114,"title":"You And Me","url":"https://archiveofourown.org/works/11277078","read":false,"stars":0,"strikethrough":false,"words":null},{"id":115,"title":"End Racism in the OTW - Intended","url":"https://archiveofourown.org/works/513147","read":false,"stars":0,"strikethrough":false,"words":null},{"id":116,"title":"Hissy Fit","url":"https://archiveofourown.org/works/117105","read":false,"stars":0,"strikethrough":false,"words":null},{"id":117,"title":"High Priced","url":"https://archiveofourown.org/works/81292","read":false,"stars":0,"strikethrough":false,"words":null},{"id":118,"title":"speak of the devil (and the devil shall appear)","url":"https://archiveofourown.org/works/33499066","read":false,"stars":0,"strikethrough":false,"words":null},{"id":119,"title":"Life Lessons","url":"https://archiveofourown.org/works/19090108","read":false,"stars":0,"strikethrough":false,"words":null},{"id":120,"title":"When We Were Angels","url":"https://archiveofourown.org/works/58793758","read":false,"stars":0,"strikethrough":false,"words":null},{"id":121,"title":"Harry Potter and the Vanished Slytherin Prince","url":"https://archiveofourown.org/works/31204313","read":false,"stars":0,"strikethrough":false,"words":null},{"id":122,"title":"when evil blooms","url":"https://archiveofourown.org/works/23354041","read":false,"stars":0,"strikethrough":false,"words":null},{"id":123,"title":"your braids like a pattern","url":"https://archiveofourown.org/works/56914813","read":false,"stars":0,"strikethrough":false,"words":null},{"id":124,"title":"The Star Splitter","url":"https://archiveofourown.org/works/49278298","read":false,"stars":0,"strikethrough":false,"words":null},{"id":125,"title":"made to look (and let them gaze)","url":"https://archiveofourown.org/works/52317724","read":false,"stars":0,"strikethrough":false,"words":null},{"id":126,"title":"Follies of an Ornamental Hermit","url":"https://archiveofourown.org/works/53480038","read":false,"stars":0,"strikethrough":false,"words":null},{"id":127,"title":"See Me File My Teeth","url":"https://archiveofourown.org/works/77263871","read":false,"stars":0,"strikethrough":false,"words":null},{"id":128,"title":"The Sleeping Beauty Curse","url":"https://archiveofourown.org/works/13076754","read":false,"stars":0,"strikethrough":false,"words":null},{"id":129,"title":"Nacre","url":"https://archiveofourown.org/works/84707691","read":false,"stars":0,"strikethrough":false,"words":null},{"id":130,"title":"Expectant","url":"https://archiveofourown.org/works/14600361","read":false,"stars":0,"strikethrough":false,"words":null},{"id":131,"title":"Grounds for Divorce","url":"https://archiveofourown.org/works/18960145","read":false,"stars":0,"strikethrough":false,"words":null},{"id":132,"title":"To the Moon","url":"https://archiveofourown.org/works/8207456","read":false,"stars":0,"strikethrough":false,"words":null},{"id":133,"title":"The Brightest Constellations of Our Souls","url":"https://archiveofourown.org/works/48774970","read":false,"stars":0,"strikethrough":false,"words":null},{"id":134,"title":"If An Injury Is To Be Inflicted","url":"https://archiveofourown.org/works/26339608","read":false,"stars":0,"strikethrough":false,"words":null},{"id":135,"title":"Crown Witness","url":"https://archiveofourown.org/works/27533566","read":false,"stars":0,"strikethrough":false,"words":null},{"id":136,"title":"A Sword Laid Aside","url":"https://archiveofourown.org/works/16062536","read":false,"stars":0,"strikethrough":false,"words":null},{"id":137,"title":"Desolation","url":"https://archiveofourown.org/works/37779922","read":false,"stars":0,"strikethrough":false,"words":null},{"id":138,"title":"Regardless of desire, life hands you who you are","url":"https://archiveofourown.org/works/27446806","read":false,"stars":0,"strikethrough":false,"words":null},{"id":139,"title":"Where The Falcons","url":"https://archiveofourown.org/works/23129308","read":false,"stars":0,"strikethrough":false,"words":null},{"id":140,"title":"In Free Fall","url":"https://archiveofourown.org/works/39529611","read":false,"stars":0,"strikethrough":false,"words":null},{"id":141,"title":"Stupid Love","url":"https://archiveofourown.org/works/27676112","read":false,"stars":0,"strikethrough":false,"words":null},{"id":142,"title":"Like Lightning at Your Fingertips","url":"https://archiveofourown.org/works/20159500","read":false,"stars":0,"strikethrough":false,"words":null},{"id":143,"title":"All Magic Flows","url":"https://archiveofourown.org/works/27870914","read":false,"stars":0,"strikethrough":false,"words":null},{"id":144,"title":"When did you get hot?","url":"https://archiveofourown.org/works/84379036","read":false,"stars":0,"strikethrough":false,"words":null},{"id":145,"title":"Malfoy's Ball","url":"https://archiveofourown.org/works/87241161","read":false,"stars":0,"strikethrough":false,"words":null},{"id":146,"title":"Things Worth Knowing","url":"https://archiveofourown.org/works/12922518","read":false,"stars":0,"strikethrough":false,"words":null},{"id":147,"title":"Watch it fall.","url":"https://archiveofourown.org/works/80520656","read":false,"stars":0,"strikethrough":false,"words":null}];
+
+let items=[], nextId=148;
+let starTargetId=null, orderTargetId=null;
+let swipeEl=null, swipeStartX=0, swipeStartY=0, swipeDx=0, swipeLocked=null, openSwipeCard=null;
+let dragIdx=null, touchClone=null, touchLastY=0;
+
+// ── STORAGE ──
+function save(){try{localStorage.setItem('ff3',JSON.stringify({items,nextId}))}catch(e){}}
+function load(){
+  try{
+    const d=localStorage.getItem('ff3');
+    if(d){const p=JSON.parse(d);items=p.items;nextId=p.nextId||148;}
+    else items=JSON.parse(JSON.stringify(DEFAULT));
+  }catch(e){items=JSON.parse(JSON.stringify(DEFAULT));}
+}
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+
+// ── RENDER ──
+function render(){
+  const unread=items.filter(i=>!i.read&&!i.strikethrough).length;
+  const read=items.filter(i=>i.read).length;
+  document.getElementById('stat-unread').textContent=`미읽음 ${unread}`;
+  document.getElementById('stat-read').textContent=`읽음 ${read}`;
+
+  document.getElementById('list').innerHTML=items.map((item,idx)=>{
+    const starsHtml=item.stars>0?`<div class="stars-row">${Array.from({length:item.stars},()=>`<span class="star-filled">★</span>`).join('')}</div>`:'';
+    return `
+    <div class="item-wrap" data-idx="${idx}" data-id="${item.id}">
+      <div class="item-actions">
+        <button class="action-btn action-star" onclick="openStar(${item.id})" aria-label="별점">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+          별점
+        </button>
+        <button class="action-btn action-cross" onclick="toggleStrikethrough(${item.id})" aria-label="취소선">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/><path d="M9 6s1-2 3-2 3 2 3 2M9 18s1 2 3 2 3-2 3-2"/></svg>
+          취소선
+        </button>
+        <button class="action-btn action-order" onclick="openOrder(${item.id},${idx})" aria-label="순서변경">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>
+          순서
+        </button>
+        <button class="action-btn action-del" onclick="deleteItem(${item.id})" aria-label="삭제">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6l-1 14H6L5 6M10 11v6M14 11v6M9 6V4h6v2"/></svg>
+          삭제
+        </button>
+      </div>
+      <div class="item-card${item.read?' read':''}${item.strikethrough?' strikethrough':''}" data-id="${item.id}">
+        <div class="handle"
+          ontouchstart="dragStart(event,${idx})"
+          ontouchmove="dragMove(event)"
+          ontouchend="dragEnd(event)"
+          aria-label="순서 변경">
+          <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="5" r="1.3"/><circle cx="9" cy="12" r="1.3"/><circle cx="9" cy="19" r="1.3"/><circle cx="15" cy="5" r="1.3"/><circle cx="15" cy="12" r="1.3"/><circle cx="15" cy="19" r="1.3"/></svg>
+        </div>
+        <div class="num-badge">${idx+1}</div>
+        <div class="item-content">
+          <div class="item-title-row">
+            ${item.url
+              ?`<a class="item-title" href="${esc(item.url)}" target="_blank">${esc(item.title)}</a>`
+              :`<span class="item-title">${esc(item.title)}</span>`}
+          </div>
+          </div>
+        <div class="item-right">
+          ${item.stars>0?`<div class="stars-row">${Array.from({length:item.stars},()=>`<span class="star-filled">★</span>`).join('')}</div>`:''}
+          <div class="check-box${item.read?' checked':''}" onclick="toggleRead(${item.id})" aria-label="읽음 표시">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 13l4 4L19 7"/></svg>
+          </div>
+        </div>
+      </div>
+    </div>`}).join('');
+
+  document.querySelectorAll('.item-card').forEach(card=>{
+    card.addEventListener('touchstart',swipeTouchStart,{passive:true});
+    card.addEventListener('touchmove',swipeTouchMove,{passive:false});
+    card.addEventListener('touchend',swipeTouchEnd,{passive:true});
+  });
+}
+
+
+// ── ACTIONS ──
+function toggleRead(id){
+  const i=items.find(x=>x.id===id);
+  if(i){i.read=!i.read;if(i.read)i.strikethrough=false;save();closeSwipe();render();}
+}
+function toggleStrikethrough(id){
+  const i=items.find(x=>x.id===id);
+  if(i){i.strikethrough=!i.strikethrough;if(i.strikethrough)i.read=false;save();closeSwipe();render();}
+}
+function deleteItem(id){
+  if(!confirm('삭제할까요?'))return;
+  items=items.filter(x=>x.id!==id);save();closeSwipe();render();
+}
+
+// ── STAR ──
+function openStar(id){
+  starTargetId=id;
+  const item=items.find(x=>x.id===id);
+  document.getElementById('star-label').textContent=item?item.title:'';
+  const picks=document.getElementById('star-picks');
+  picks.innerHTML=[1,2,3,4,5].map(s=>`<button class="star-pick${item&&item.stars>=s?' on':''}" onclick="setStar(${s})">★</button>`).join('');
+  closeSwipe();showSheet('star-sheet');
+}
+function setStar(n){
+  const i=items.find(x=>x.id===starTargetId);
+  if(i){i.stars=n;save();render();}
+  closeAll();
+}
+
+// ── ORDER ──
+function openOrder(id,idx){
+  orderTargetId=id;
+  const item=items.find(x=>x.id===id);
+  document.getElementById('order-label').textContent=`"${item?item.title:''}" 을(를) 몇 번째로 이동할까요? (현재 ${idx+1}번)`;
+  document.getElementById('order-inp').value='';
+  document.getElementById('order-inp').max=items.length;
+  closeSwipe();showSheet('order-sheet');
+  setTimeout(()=>document.getElementById('order-inp').focus(),300);
+}
+function confirmOrder(){
+  const val=parseInt(document.getElementById('order-inp').value);
+  if(isNaN(val)||val<1||val>items.length){showToast('올바른 번호를 입력해주세요');return;}
+  const fromIdx=items.findIndex(x=>x.id===orderTargetId);
+  if(fromIdx<0)return;
+  const to=val-1;
+  const moved=items.splice(fromIdx,1)[0];
+  items.splice(to,0,moved);
+  save();closeAll();render();showToast(`${val}번으로 이동했어요`);
+}
+
+// ── RANDOM ──
+function pickRandom(){
+  const pool=items.filter(i=>!i.read&&!i.strikethrough);
+  if(!pool.length){showToast('미읽음 목록이 없어요 🎉');return;}
+  const pick=pool[Math.floor(Math.random()*pool.length)];
+  document.getElementById('rand-title').textContent=pick.title;
+  document.getElementById('rand-words').textContent='';
+  const a=document.getElementById('rand-link');
+  if(pick.url){a.href=pick.url;a.textContent=pick.url;a.style.display='';}
+  else a.style.display='none';
+  showSheet('rand-sheet');
+}
+
+// ── ADD ──
+let fetchTimer=null;
+function openAdd(){
+  document.getElementById('add-url').value='';
+  document.getElementById('add-title').value='';
+  document.getElementById('fetch-status').textContent='';
+  document.getElementById('fetch-status').className='fetch-status';
+  showSheet('add-sheet');
+  setTimeout(()=>document.getElementById('add-url').focus(),300);
+}
+function onUrlInput(){
+  clearTimeout(fetchTimer);
+  const url=document.getElementById('add-url').value.trim();
+  // 중복 체크
+  if(url&&items.some(i=>i.url===url)){
+    const st=document.getElementById('fetch-status');
+    st.textContent='이미 목록에 있는 작품이에요!';st.className='fetch-status warn';
+    return;
+  }
+  if(!url||!url.includes('archiveofourown.org'))return;
+  fetchTimer=setTimeout(()=>fetchAO3(url),700);
+}
+
+async function fetchAO3(url){
+  const st=document.getElementById('fetch-status');
+  st.className='fetch-status';
+  st.innerHTML='<span class="spinner"></span>제목과 단어수 불러오는 중...';
+  try{
+    const proxy='https://corsproxy.io/?'+encodeURIComponent(url);
+    const res=await fetch(proxy,{signal:AbortSignal.timeout(12000)});
+    if(!res.ok)throw new Error('failed');
+    const html=await res.text();
+    const doc=new DOMParser().parseFromString(html,'text/html');
+    const isSeries=url.includes('/series/');
+    let title='';
+
+    if(isSeries){
+      title=doc.querySelector('h2.heading')?.textContent.trim()||'';
+    } else {
+      let workDoc=doc;
+      if(doc.querySelector('form#adult-fanworks,form[action*="adult"]')){
+        const r2=await fetch('https://corsproxy.io/?'+encodeURIComponent(url+(url.includes('?')?'&':'?')+'view_adult=true'),{signal:AbortSignal.timeout(12000)});
+        if(r2.ok)workDoc=new DOMParser().parseFromString(await r2.text(),'text/html');
+      }
+      title=workDoc.querySelector('h2.title.heading')?.textContent.trim()||'';
+    }
+
+    document.getElementById('add-title').value=title;
+    if(title){st.innerHTML=`<span style="color:var(--green)">✓</span> ${esc(title)}`;st.className='fetch-status ok';}
+    else{st.textContent='제목을 찾지 못했어요 (직접 입력해주세요)';st.className='fetch-status err';}
+  }catch(e){
+    st.textContent='불러오기 실패 (직접 입력해주세요)';st.className='fetch-status err';
+  }
+}
+
+function confirmAdd(){
+  const url=document.getElementById('add-url').value.trim();
+  const title=document.getElementById('add-title').value.trim();
+  if(!title){document.getElementById('add-title').focus();return;}
+  // 중복 재확인
+  if(url&&items.some(i=>i.url===url)){showToast('이미 목록에 있어요!');return;}
+  items.push({id:nextId++,title,url,read:false,stars:0,strikethrough:false});
+  save();render();closeAll();showToast('추가됐어요!');
+}
+
+// ── SWIPE ──
+function swipeTouchStart(e){
+  if(e.touches.length>1)return;
+  swipeEl=e.currentTarget;
+  swipeStartX=e.touches[0].clientX;
+  swipeStartY=e.touches[0].clientY;
+  swipeDx=0;swipeLocked=null;
+}
+function swipeTouchMove(e){
+  if(!swipeEl||e.touches.length>1)return;
+  const dx=e.touches[0].clientX-swipeStartX;
+  const dy=e.touches[0].clientY-swipeStartY;
+  if(swipeLocked===null){
+    if(Math.abs(dx)>Math.abs(dy)&&Math.abs(dx)>6)swipeLocked='h';
+    else if(Math.abs(dy)>Math.abs(dx)&&Math.abs(dy)>6)swipeLocked='v';
+    else return;
+  }
+  if(swipeLocked==='v')return;
+  e.preventDefault();
+  swipeDx=dx;
+  const base=swipeEl.classList.contains('swiped')?-252:0;
+  const clamped=Math.max(-252,Math.min(0,base+dx));
+  swipeEl.style.transition='none';
+  swipeEl.style.transform=`translateX(${clamped}px)`;
+}
+function swipeTouchEnd(){
+  if(!swipeEl||swipeLocked!=='h')return;
+  swipeEl.style.transition='';
+  const already=swipeEl.classList.contains('swiped');
+  if(!already&&swipeDx<-60){
+    if(openSwipeCard&&openSwipeCard!==swipeEl){openSwipeCard.classList.remove('swiped');openSwipeCard.style.transform='';}
+    swipeEl.classList.add('swiped');swipeEl.style.transform='';openSwipeCard=swipeEl;
+  } else if(already&&swipeDx>40){
+    swipeEl.classList.remove('swiped');swipeEl.style.transform='';openSwipeCard=null;
+  } else {
+    swipeEl.style.transform=already?'translateX(-252px)':'';
+  }
+  swipeEl=null;swipeDx=0;swipeLocked=null;
+}
+function closeSwipe(){
+  if(openSwipeCard){openSwipeCard.classList.remove('swiped');openSwipeCard.style.transform='';openSwipeCard=null;}
+}
+
+// ── TOUCH DRAG ──
+function dragStart(e,idx){
+  if(e.touches.length>1)return;
+  dragIdx=idx;touchLastY=e.touches[0].clientY;
+  const card=e.currentTarget.closest('.item-card');
+  card.classList.add('dragging');
+  touchClone=card.cloneNode(true);
+  const r=card.getBoundingClientRect();
+  touchClone.style.cssText=`position:fixed;left:${r.left}px;width:${r.width}px;top:${r.top}px;z-index:200;pointer-events:none;opacity:.88;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.15);`;
+  document.body.appendChild(touchClone);
+  e.stopPropagation();
+}
+function dragMove(e){
+  if(dragIdx===null||!touchClone)return;
+  e.preventDefault();
+  const y=e.touches[0].clientY;
+  touchClone.style.top=(parseFloat(touchClone.style.top)+(y-touchLastY))+'px';
+  touchLastY=y;
+  document.querySelectorAll('.item-wrap').forEach((wrap,i)=>{
+    wrap.classList.remove('drag-over-top','drag-over-bottom');
+    if(i===dragIdx)return;
+    const r=wrap.getBoundingClientRect();
+    if(y>=r.top&&y<=r.bottom)wrap.classList.add(y<r.top+r.height/2?'drag-over-top':'drag-over-bottom');
+  });
+  e.stopPropagation();
+}
+function dragEnd(e){
+  if(dragIdx===null)return;
+  const y=e.changedTouches[0].clientY;
+  let targetIdx=dragIdx;
+  document.querySelectorAll('.item-wrap').forEach((wrap,i)=>{
+    wrap.classList.remove('drag-over-top','drag-over-bottom');
+    const r=wrap.getBoundingClientRect();
+    if(y>=r.top&&y<=r.bottom){
+      targetIdx=y<r.top+r.height/2?i:Math.min(i+1,items.length-1);
+    }
+  });
+  const insertAt=targetIdx>dragIdx?targetIdx-1:targetIdx;
+  if(insertAt!==dragIdx&&insertAt>=0&&insertAt<items.length){
+    const moved=items.splice(dragIdx,1)[0];items.splice(insertAt,0,moved);save();
+  }
+  document.querySelectorAll('.item-card.dragging').forEach(c=>c.classList.remove('dragging'));
+  if(touchClone){touchClone.remove();touchClone=null;}
+  dragIdx=null;render();e.stopPropagation();
+}
+
+// ── SHEET HELPERS ──
+function showSheet(id){document.getElementById('overlay').classList.add('show');document.getElementById(id).classList.add('show');}
+function closeAll(){
+  document.getElementById('overlay').classList.remove('show');
+  document.querySelectorAll('.sheet').forEach(s=>s.classList.remove('show'));
+  closeSwipe();
+}
+function showToast(msg){
+  const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2200);
+}
+
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape')closeAll();
+  if(e.key==='Enter'){
+    if(document.getElementById('add-sheet').classList.contains('show'))confirmAdd();
+    if(document.getElementById('order-sheet').classList.contains('show'))confirmOrder();
+  }
+});
+
+load();render();
+</script>
+</body>
+</html>
