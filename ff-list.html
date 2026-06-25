@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ff 읽기 목록</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  :root {
+    --bg: #ffffff;
+    --bg2: #f5f5f5;
+    --bg3: #eeeeee;
+    --text: #111111;
+    --text2: #666666;
+    --text3: #aaaaaa;
+    --border: rgba(0,0,0,0.1);
+    --border2: rgba(0,0,0,0.18);
+    --accent: #4a90d9;
+    --star: #f59e0b;
+    --radius: 12px;
+    --radius-sm: 8px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #121212;
+      --bg2: #1e1e1e;
+      --bg3: #2a2a2a;
+      --text: #f0f0f0;
+      --text2: #999999;
+      --text3: #555555;
+      --border: rgba(255,255,255,0.1);
+      --border2: rgba(255,255,255,0.18);
+    }
+  }
+
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+  .wrap { max-width: 600px; margin: 0 auto; padding: 20px 16px 60px; }
+
+  header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+  header h1 { font-size: 22px; font-weight: 600; letter-spacing: -0.5px; }
+  .stats { font-size: 13px; color: var(--text2); }
+
+  .toolbar { display: flex; gap: 8px; margin-bottom: 16px; }
+  .btn { display: inline-flex; align-items: center; gap: 6px; padding: 9px 16px; border: 1px solid var(--border2); border-radius: var(--radius-sm); background: transparent; color: var(--text); font-size: 14px; cursor: pointer; white-space: nowrap; min-height: 42px; }
+  .btn:active { background: var(--bg2); }
+  .btn-random { background: var(--bg2); }
+  .btn svg { width: 16px; height: 16px; flex-shrink: 0; }
+
+  .list { border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+
+  .item { display: grid; grid-template-columns: 40px 30px 1fr auto; align-items: center; border-bottom: 1px solid var(--border); background: var(--bg); transition: background 0.15s; }
+  .item:last-child { border-bottom: none; }
+  .item.read { background: var(--bg2); }
+  .item.dragging { opacity: 0.35; }
+  .item.drag-over-top { box-shadow: inset 0 3px 0 var(--accent); }
+  .item.drag-over-bottom { box-shadow: inset 0 -3px 0 var(--accent); }
+
+  .handle { display: flex; align-items: center; justify-content: center; min-height: 56px; padding: 0 4px 0 10px; cursor: grab; color: var(--text3); touch-action: none; }
+  .handle:active { cursor: grabbing; }
+  .handle svg { width: 18px; height: 18px; }
+
+  .num { font-size: 12px; color: var(--text3); text-align: center; }
+
+  .content { padding: 14px 8px 14px 4px; min-width: 0; }
+  .item-title { font-size: 15px; color: var(--text); text-decoration: none; display: block; word-break: break-word; line-height: 1.4; }
+  .item-title:active { opacity: 0.7; }
+  .item.read .item-title { color: var(--text3); }
+
+  .right { display: flex; align-items: center; gap: 10px; padding: 0 14px 0 6px; }
+
+  .star-btn { font-size: 20px; padding: 4px; border: none; background: none; cursor: pointer; color: var(--text3); line-height: 1; min-height: 44px; min-width: 32px; display: flex; align-items: center; justify-content: center; }
+  .star-btn.has-stars { color: var(--star); }
+
+  input[type=checkbox] { width: 20px; height: 20px; cursor: pointer; accent-color: var(--accent); flex-shrink: 0; }
+
+  /* Star sheet */
+  .star-sheet-overlay { display: none; position: fixed; inset: 0; z-index: 50; }
+  .star-sheet-overlay.show { display: block; }
+  .star-sheet { position: fixed; left: 50%; transform: translateX(-50%); bottom: 24px; background: var(--bg); border: 1px solid var(--border2); border-radius: var(--radius); padding: 16px 20px; display: none; align-items: center; gap: 4px; z-index: 51; box-shadow: 0 8px 32px rgba(0,0,0,0.15); }
+  .star-sheet.show { display: flex; }
+  .star-sheet .star { font-size: 30px; padding: 6px; border: none; background: none; cursor: pointer; color: var(--text3); min-height: 48px; min-width: 44px; display: flex; align-items: center; justify-content: center; }
+  .star-sheet .star.on { color: var(--star); }
+  .star-sheet .clear { font-size: 13px; color: var(--text2); padding: 6px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); margin-left: 8px; background: none; cursor: pointer; white-space: nowrap; }
+
+  /* Bottom sheet modal */
+  .modal-overlay { display: none; position: fixed; inset: 0; z-index: 100; background: rgba(0,0,0,0.4); align-items: flex-end; justify-content: center; }
+  .modal-overlay.show { display: flex; }
+  .modal { background: var(--bg); border-radius: var(--radius) var(--radius) 0 0; padding: 28px 24px 48px; width: 100%; max-width: 480px; text-align: center; }
+  .modal-dice { font-size: 32px; margin-bottom: 10px; }
+  .modal h2 { font-size: 18px; font-weight: 600; margin-bottom: 8px; line-height: 1.4; }
+  .modal .modal-link { display: inline-block; margin-top: 10px; font-size: 13px; color: var(--accent); word-break: break-all; }
+  .modal-close { margin-top: 20px; width: 100%; padding: 14px; font-size: 15px; border-radius: var(--radius-sm); border: 1px solid var(--border2); background: transparent; color: var(--text); cursor: pointer; }
+
+  /* Add sheet */
+  .add-overlay { display: none; position: fixed; inset: 0; z-index: 100; background: rgba(0,0,0,0.4); align-items: flex-end; justify-content: center; }
+  .add-overlay.show { display: flex; }
+  .add-sheet { background: var(--bg); border-radius: var(--radius) var(--radius) 0 0; padding: 24px 20px 48px; width: 100%; max-width: 480px; }
+  .add-sheet h3 { font-size: 16px; font-weight: 600; margin-bottom: 16px; }
+  .add-sheet input { width: 100%; padding: 12px 14px; border: 1px solid var(--border2); border-radius: var(--radius-sm); background: var(--bg2); color: var(--text); font-size: 15px; margin-bottom: 10px; outline: none; }
+  .add-sheet input:focus { border-color: var(--accent); }
+  .add-sheet .add-actions { display: flex; gap: 8px; margin-top: 4px; }
+  .add-sheet .add-actions button { flex: 1; padding: 13px; font-size: 15px; border-radius: var(--radius-sm); border: 1px solid var(--border2); background: transparent; color: var(--text); cursor: pointer; }
+  .add-sheet .add-actions .confirm { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+  .empty { padding: 40px 20px; text-align: center; color: var(--text2); font-size: 15px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>ff 읽기 목록</h1>
+    <span class="stats" id="stats"></span>
+  </header>
+  <div class="toolbar">
+    <button class="btn btn-random" onclick="pickRandom()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 3h5v5M4 20 20.2 3.8M21 16v5h-5M15 15l5.1 5.1M4 4l5 5"/></svg>
+      랜덤 뽑기
+    </button>
+    <button class="btn" onclick="openAdd()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+      추가
+    </button>
+  </div>
+  <div class="list" id="list"></div>
+</div>
+
+<!-- Star sheet -->
+<div class="star-sheet-overlay" id="star-overlay" onclick="closeStars()"></div>
+<div class="star-sheet" id="star-sheet">
+  <button class="star" onclick="setStar(1)" aria-label="1점">★</button>
+  <button class="star" onclick="setStar(2)" aria-label="2점">★</button>
+  <button class="star" onclick="setStar(3)" aria-label="3점">★</button>
+  <button class="star" onclick="setStar(4)" aria-label="4점">★</button>
+  <button class="star" onclick="setStar(5)" aria-label="5점">★</button>
+  <button class="clear" onclick="setStar(0)">지우기</button>
+</div>
+
+<!-- Random modal -->
+<div class="modal-overlay" id="rand-modal" onclick="closeRand(event)">
+  <div class="modal">
+    <div class="modal-dice">🎲</div>
+    <h2 id="rand-title"></h2>
+    <a class="modal-link" id="rand-link" href="#" target="_blank"></a>
+    <button class="modal-close" onclick="document.getElementById('rand-modal').classList.remove('show')">닫기</button>
+  </div>
+</div>
+
+<!-- Add sheet -->
+<div class="add-overlay" id="add-overlay" onclick="closeAddOverlay(event)">
+  <div class="add-sheet">
+    <h3>팬픽 추가</h3>
+    <input type="text" id="add-title" placeholder="제목" />
+    <input type="url" id="add-url" placeholder="AO3 링크 (선택)" />
+    <div class="add-actions">
+      <button onclick="document.getElementById('add-overlay').classList.remove('show')">취소</button>
+      <button class="confirm" onclick="confirmAdd()">추가</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const DEFAULT = [
+  {id:1,title:"Heat of the Heart",url:"https://archiveofourown.org/works/11075166",read:false,stars:0},
+  {id:2,title:"The Bolthole",url:"https://archiveofourown.org/works/26025370",read:false,stars:0},
+  {id:3,title:"Want for Nothing",url:"https://archiveofourown.org/works/58803367",read:false,stars:0},
+  {id:4,title:"A Holiday in Provence",url:"https://archiveofourown.org/works/15904410",read:false,stars:0},
+  {id:5,title:"The Boy from the Piano Shop",url:"https://archiveofourown.org/works/51376738",read:false,stars:0},
+  {id:6,title:"Telling the Bees",url:"https://archiveofourown.org/works/22775038",read:false,stars:0},
+  {id:7,title:"Among Ancient Pines",url:"https://archiveofourown.org/works/33420310",read:false,stars:0},
+  {id:8,title:"Blood and Fire",url:"https://archiveofourown.org/works/12684348",read:false,stars:0},
+  {id:9,title:"Nothing But You On My Mind",url:"https://archiveofourown.org/works/48665548",read:false,stars:0},
+  {id:10,title:"XXIX",url:"https://archiveofourown.org/works/66490894",read:false,stars:0},
+  {id:11,title:"Tit for Tat",url:"https://archiveofourown.org/works/26244286",read:false,stars:0},
+  {id:12,title:"Never Mind the Bollocks",url:"https://archiveofourown.org/works/52502854",read:false,stars:0},
+  {id:13,title:"Sent Down",url:"https://archiveofourown.org/works/66056227",read:false,stars:0},
+  {id:14,title:"No Harm",url:"https://archiveofourown.org/works/52452140",read:false,stars:0},
+  {id:15,title:"Hold Close Your Heart and Take the Leap",url:"https://archiveofourown.org/works/24340816",read:false,stars:0},
+  {id:16,title:"Not a Date",url:"https://archiveofourown.org/works/16485653",read:false,stars:0},
+  {id:17,title:"Zoртас",url:"https://archiveofourown.org/works/65174116",read:false,stars:0},
+];
+
+let items = [], nextId = 18, starTargetId = null;
+
+function save() { try { localStorage.setItem('ff_v1', JSON.stringify({items, nextId})); } catch(e) {} }
+function load() {
+  try {
+    const d = localStorage.getItem('ff_v1');
+    if (d) { const p = JSON.parse(d); items = p.items; nextId = p.nextId; }
+    else { items = JSON.parse(JSON.stringify(DEFAULT)); }
+  } catch(e) { items = JSON.parse(JSON.stringify(DEFAULT)); }
+}
+
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+function render() {
+  const unread = items.filter(i => !i.read).length;
+  document.getElementById('stats').textContent = `${items.length}편 · 미읽음 ${unread}`;
+  const list = document.getElementById('list');
+  if (!items.length) { list.innerHTML = '<div class="empty">목록이 비어있어요</div>'; return; }
+  list.innerHTML = items.map((item, idx) => `
+    <div class="item${item.read ? ' read' : ''}" data-idx="${idx}" data-id="${item.id}">
+      <div class="handle" data-drag="${idx}" ontouchstart="touchStart(event,${idx})" ontouchmove="touchMove(event)" ontouchend="touchEnd(event)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="5" r="1" fill="currentColor" stroke="none"/><circle cx="9" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="9" cy="19" r="1" fill="currentColor" stroke="none"/><circle cx="15" cy="5" r="1" fill="currentColor" stroke="none"/><circle cx="15" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="15" cy="19" r="1" fill="currentColor" stroke="none"/></svg>
+      </div>
+      <div class="num">${idx + 1}</div>
+      <div class="content">
+        ${item.url
+          ? `<a class="item-title" href="${esc(item.url)}" target="_blank">${esc(item.title)}</a>`
+          : `<span class="item-title">${esc(item.title)}</span>`}
+      </div>
+      <div class="right">
+        <button class="star-btn${item.stars > 0 ? ' has-stars' : ''}" onclick="openStars(${item.id})" aria-label="별점">
+          ${item.stars > 0 ? '★'.repeat(item.stars) : '☆'}
+        </button>
+        <input type="checkbox" ${item.read ? 'checked' : ''} onchange="toggleRead(${item.id})" aria-label="읽음 표시">
+      </div>
+    </div>`).join('');
+}
+
+function toggleRead(id) {
+  const i = items.find(x => x.id === id);
+  if (i) { i.read = !i.read; save(); render(); }
+}
+
+function openStars(id) {
+  starTargetId = id;
+  const item = items.find(x => x.id === id);
+  const stars = document.querySelectorAll('#star-sheet .star');
+  stars.forEach((s, i) => s.classList.toggle('on', item && item.stars > i));
+  document.getElementById('star-overlay').classList.add('show');
+  document.getElementById('star-sheet').classList.add('show');
+}
+
+function closeStars() {
+  starTargetId = null;
+  document.getElementById('star-overlay').classList.remove('show');
+  document.getElementById('star-sheet').classList.remove('show');
+}
+
+function setStar(n) {
+  const i = items.find(x => x.id === starTargetId);
+  if (i) { i.stars = n; save(); render(); }
+  closeStars();
+}
+
+function pickRandom() {
+  const unread = items.filter(i => !i.read);
+  if (!unread.length) { alert('모두 읽었어요! 🎉'); return; }
+  const pick = unread[Math.floor(Math.random() * unread.length)];
+  document.getElementById('rand-title').textContent = pick.title;
+  const a = document.getElementById('rand-link');
+  if (pick.url) { a.href = pick.url; a.textContent = pick.url; a.style.display = ''; }
+  else { a.style.display = 'none'; }
+  document.getElementById('rand-modal').classList.add('show');
+}
+
+function closeRand(e) { if (e.target === document.getElementById('rand-modal')) document.getElementById('rand-modal').classList.remove('show'); }
+
+function openAdd() {
+  document.getElementById('add-title').value = '';
+  document.getElementById('add-url').value = '';
+  document.getElementById('add-overlay').classList.add('show');
+  setTimeout(() => document.getElementById('add-title').focus(), 100);
+}
+
+function closeAddOverlay(e) { if (e.target === document.getElementById('add-overlay')) document.getElementById('add-overlay').classList.remove('show'); }
+
+function confirmAdd() {
+  const title = document.getElementById('add-title').value.trim();
+  if (!title) { document.getElementById('add-title').focus(); return; }
+  const url = document.getElementById('add-url').value.trim();
+  items.push({ id: nextId++, title, url, read: false, stars: 0 });
+  save(); render();
+  document.getElementById('add-overlay').classList.remove('show');
+}
+
+// Touch drag
+let touchDragIdx = null, touchClone = null, touchLastY = 0;
+
+function touchStart(e, idx) {
+  touchDragIdx = idx;
+  touchLastY = e.touches[0].clientY;
+  const el = e.currentTarget.closest('.item');
+  el.classList.add('dragging');
+  touchClone = el.cloneNode(true);
+  const r = el.getBoundingClientRect();
+  touchClone.style.cssText = `position:fixed;left:${r.left}px;width:${r.width}px;top:${r.top}px;z-index:99;pointer-events:none;opacity:0.9;border:1px solid var(--border2);border-radius:4px;background:var(--bg);`;
+  document.body.appendChild(touchClone);
+}
+
+function touchMove(e) {
+  if (touchDragIdx === null) return;
+  e.preventDefault();
+  const y = e.touches[0].clientY;
+  const dy = y - touchLastY;
+  touchClone.style.top = (parseFloat(touchClone.style.top) + dy) + 'px';
+  touchLastY = y;
+  document.querySelectorAll('.item').forEach(el => {
+    el.classList.remove('drag-over-top', 'drag-over-bottom');
+    const r = el.getBoundingClientRect();
+    if (y >= r.top && y <= r.bottom) {
+      el.classList.add(y < r.top + r.height / 2 ? 'drag-over-top' : 'drag-over-bottom');
+    }
+  });
+}
+
+function touchEnd(e) {
+  if (touchDragIdx === null) return;
+  const y = e.changedTouches[0].clientY;
+  let targetIdx = touchDragIdx;
+  document.querySelectorAll('.item').forEach((el, idx) => {
+    const r = el.getBoundingClientRect();
+    if (y >= r.top && y <= r.bottom) {
+      targetIdx = y < r.top + r.height / 2 ? idx : Math.min(idx + 1, items.length - 1);
+    }
+    el.classList.remove('drag-over-top', 'drag-over-bottom', 'dragging');
+  });
+  if (touchClone) { touchClone.remove(); touchClone = null; }
+  if (targetIdx !== touchDragIdx) {
+    const moved = items.splice(touchDragIdx, 1)[0];
+    const insertAt = targetIdx > touchDragIdx ? targetIdx - 1 : targetIdx;
+    items.splice(insertAt, 0, moved);
+    save();
+  }
+  touchDragIdx = null;
+  render();
+}
+
+// Enter key for add form
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && document.getElementById('add-overlay').classList.contains('show')) confirmAdd();
+  if (e.key === 'Escape') {
+    document.getElementById('add-overlay').classList.remove('show');
+    document.getElementById('rand-modal').classList.remove('show');
+    closeStars();
+  }
+});
+
+load();
+render();
+</script>
+</body>
+</html>
