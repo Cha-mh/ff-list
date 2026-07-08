@@ -384,33 +384,50 @@ function onUrlInput(){
 async function fetchAO3(url){
   const st=document.getElementById('fetch-status');
   st.className='fetch-status';
-  st.innerHTML='<span class="spinner"></span>제목과 단어수 불러오는 중...';
-  try{
-    const proxy='https://corsproxy.io/?'+encodeURIComponent(url);
-    const res=await fetch(proxy,{signal:AbortSignal.timeout(12000)});
-    if(!res.ok)throw new Error('failed');
-    const html=await res.text();
+  st.innerHTML='<span class="spinner"></span>제목 불러오는 중...';
+
+  const isSeries=url.includes('/series/');
+  const adultUrl=url+(url.includes('?')?'&':'?')+'view_adult=true';
+
+  const proxies=[
+    u=>`https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
+    u=>`https://corsproxy.io/?${encodeURIComponent(u)}`,
+    u=>`https://thingproxy.freeboard.io/fetch/${u}`,
+  ];
+
+  function extractTitle(html){
     const doc=new DOMParser().parseFromString(html,'text/html');
-    const isSeries=url.includes('/series/');
-    let title='';
-
+    if(doc.querySelector('#adult-fanworks,form[action*="adult"]')) return null;
     if(isSeries){
-      title=doc.querySelector('h2.heading')?.textContent.trim()||'';
-    } else {
-      let workDoc=doc;
-      if(doc.querySelector('form#adult-fanworks,form[action*="adult"]')){
-        const r2=await fetch('https://corsproxy.io/?'+encodeURIComponent(url+(url.includes('?')?'&':'?')+'view_adult=true'),{signal:AbortSignal.timeout(12000)});
-        if(r2.ok)workDoc=new DOMParser().parseFromString(await r2.text(),'text/html');
-      }
-      title=workDoc.querySelector('h2.title.heading')?.textContent.trim()||'';
+      return doc.querySelector('h2.heading')?.textContent.trim()||
+             doc.querySelector('.series-show h2')?.textContent.trim()||'';
     }
-
-    document.getElementById('add-title').value=title;
-    if(title){st.innerHTML=`<span style="color:var(--green)">✓</span> ${esc(title)}`;st.className='fetch-status ok';}
-    else{st.textContent='제목을 찾지 못했어요 (직접 입력해주세요)';st.className='fetch-status err';}
-  }catch(e){
-    st.textContent='불러오기 실패 (직접 입력해주세요)';st.className='fetch-status err';
+    return doc.querySelector('h2.title.heading')?.textContent.trim()||
+           doc.querySelector('.title.heading')?.textContent.trim()||
+           doc.querySelector('h2.title')?.textContent.trim()||'';
   }
+
+  for(const proxyFn of proxies){
+    try{
+      const targetUrl=isSeries?url:adultUrl;
+      const res=await fetch(proxyFn(targetUrl),{signal:AbortSignal.timeout(10000)});
+      if(!res.ok) continue;
+      let title=extractTitle(await res.text());
+      if(title===null){
+        const r2=await fetch(proxyFn(adultUrl),{signal:AbortSignal.timeout(10000)});
+        title=r2.ok?extractTitle(await r2.text())||'':'';
+      }
+      if(title){
+        document.getElementById('add-title').value=title;
+        st.innerHTML=`<span style="color:var(--green)">✓</span> ${esc(title)}`;
+        st.className='fetch-status ok';
+        return;
+      }
+    }catch(e){ continue; }
+  }
+
+  st.textContent='자동 입력 실패 — 제목을 직접 입력해주세요';
+  st.className='fetch-status err';
 }
 
 function confirmAdd(){
