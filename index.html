@@ -300,15 +300,14 @@ function render(){
 
 
 // ── BACKUP / EXPORT ──
-async function exportData(){
+function exportData(){
   try{
-    const raw = localStorage.getItem('ff3');
-    if(!raw){
-      showToast('백업할 데이터가 없어요');
+    const data = localStorage.getItem('ff3');
+    if(!data){
+      alert('백업할 데이터가 없습니다.');
       return;
     }
 
-    const data = JSON.parse(raw);
     const backup = {
       app: 'Drarry TBR List',
       version: 1,
@@ -317,41 +316,25 @@ async function exportData(){
     };
 
     const json = JSON.stringify(backup, null, 2);
-    const fileName = `drarry-tbr-backup-${new Date().toISOString().slice(0,10)}.json`;
     const blob = new Blob([json], {type:'application/json'});
-    const file = new File([blob], fileName, {type:'application/json'});
+    const url = URL.createObjectURL(blob);
 
-    // iPhone/iPad Safari:
-    // 공유 시트에 파일 자체를 넘겨서 ChatGPT/메시지/파일 앱 등으로 바로 공유.
-    if(navigator.share){
-      try{
-        if(!navigator.canShare || navigator.canShare({files:[file]})){
-          await navigator.share({
-            title:'Drarry TBR 백업',
-            files:[file]
-          });
-          return;
-        }
-      }catch(e){
-        if(e && e.name === 'AbortError') return;
-      }
-    }
-
-    // 공유 기능을 지원하지 않는 환경에서는 일반 다운로드.
     const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = fileName;
+    const date = new Date().toISOString().slice(0,10);
+    a.href = url;
+    a.download = `drarry-tbr-backup-${date}.json`;
+    a.style.display = 'none';
+
     document.body.appendChild(a);
     a.click();
     a.remove();
-    setTimeout(()=>URL.revokeObjectURL(a.href),1000);
-    showToast('백업 파일을 다운로드했어요');
+
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
   }catch(e){
+    alert('백업 파일을 만드는 중 오류가 발생했습니다.');
     console.error(e);
-    showToast('백업에 실패했어요');
   }
 }
-
 
 // ── ACTIONS ──
 function toggleRead(id){
