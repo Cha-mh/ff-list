@@ -155,6 +155,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
     </div>
   </div>
   <div class="toolbar">
+    <button class="btn" onclick="exportData()" aria-label="TBR 백업">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12M7 10l5 5 5-5"/><path d="M5 21h14"/></svg>
+      백업
+    </button>
     <button class="btn btn-add" onclick="openAdd()">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
       추가
@@ -294,6 +298,59 @@ function render(){
   });
 }
 
+
+// ── BACKUP / EXPORT ──
+async function exportData(){
+  try{
+    const raw = localStorage.getItem('ff3');
+    if(!raw){
+      showToast('백업할 데이터가 없어요');
+      return;
+    }
+
+    const data = JSON.parse(raw);
+    const backup = {
+      app: 'Drarry TBR List',
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      data
+    };
+
+    const blob = new Blob(
+      [JSON.stringify(backup, null, 2)],
+      {type:'application/json'}
+    );
+    const fileName = `drarry-tbr-backup-${new Date().toISOString().slice(0,10)}.json`;
+    const file = new File([blob], fileName, {type:'application/json'});
+
+    // iPhone/iPad Safari: 공유 시트에서 '파일에 저장' 등을 선택할 수 있게 함.
+    if(navigator.share && (!navigator.canShare || navigator.canShare({files:[file]}))){
+      try{
+        await navigator.share({
+          title:'Drarry TBR 백업',
+          text:`TBR ${items.length}개 백업`,
+          files:[file]
+        });
+        return;
+      }catch(e){
+        if(e && e.name === 'AbortError') return;
+      }
+    }
+
+    // 그 외 환경은 일반 파일 다운로드로 fallback.
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+    showToast('백업 파일을 저장했어요');
+  }catch(e){
+    console.error(e);
+    showToast('백업에 실패했어요');
+  }
+}
 
 // ── ACTIONS ──
 function toggleRead(id){
